@@ -8,8 +8,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bondzai/logger/internal/mongodb"
 	"github.com/bondzai/logger/internal/rabbitmq"
 )
+
+func init() {
+	log.SetPrefix("LOG: ")
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	log.Println("initial started")
+
+	mongodb.Initial()
+}
 
 func main() {
 	connectionURL := "amqp://guest:guest@localhost:5672/"
