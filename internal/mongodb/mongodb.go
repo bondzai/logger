@@ -8,7 +8,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// MongoDB encapsulates the MongoDB connection and related operations
 type MongoDB struct {
 	client   *mongo.Client
 	database *mongo.Database
