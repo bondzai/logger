@@ -1,85 +1,49 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 	"time"
 
-	"github.com/streadway/amqp"
-)
-
-const (
-	QueueName     = "log"
-	ConnectionURL = "amqp://guest:guest@localhost:5672/"
+	"github.com/bondzai/logger/internal/rabbitmq"
 )
 
 func main() {
-	// Connect to RabbitMQ
-	conn, err := amqp.Dial(ConnectionURL)
-	if err != nil {
-		log.Fatal("Failed to connect to RabbitMQ:", err)
-	}
-	defer conn.Close()
+	connectionURL := "amqp://guest:guest@localhost:5672/"
+	logQueueName := "log"
+	failedQueueName := "failed"
 
-	ch, err := conn.Channel()
+	consumer, err := rabbitmq.NewConsumer(connectionURL, logQueueName, failedQueueName)
 	if err != nil {
-		log.Fatal("Failed to open a channel:", err)
-	}
-	defer ch.Close()
-
-	// Declare the queue to consume
-	q, err := ch.QueueDeclare(
-		QueueName, // Queue name
-		true,      // Durable
-		false,     // Delete when unused
-		false,     // Exclusive
-		false,     // No-wait
-		nil,       // Arguments
-	)
-	if err != nil {
-		log.Fatal("Failed to declare a queue:", err)
+		log.Fatal("Failed to create RabbitMQ consumer:", err)
 	}
 
-	// Consume messages from the queue
-	msgs, err := ch.Consume(
-		q.Name, // Queue
-		"",     // Consumer
-		true,   // Auto-acknowledge
-		false,  // Exclusive
-		false,  // No-local
-		false,  // No-wait
-		nil,    // Args
-	)
-	if err != nil {
-		log.Fatal("Failed to register a consumer:", err)
-	}
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
-	// Process messages
-	forever := make(chan bool)
+	var wg sync.WaitGroup
 
 	go func() {
-		for d := range msgs {
-			var message map[string]interface{}
-
-			err := json.Unmarshal(d.Body, &message)
-			if err != nil {
-				log.Println("Error decoding message:", err)
-				continue
-			}
-
-			processMessage(message)
-		}
+		defer wg.Done() // Decrement the WaitGroup counter when done
+		<-signals
+		log.Println("Received termination signal. Stopping consumer...")
+		consumer.Stop()
 	}()
 
+	wg.Add(1) // Increment the WaitGroup counter
+
+	consumer.Start(processMessage)
+
 	log.Printf("Consumer started. To exit, press CTRL+C")
-	<-forever
+	wg.Wait() // Wait for all goroutines to finish before exiting
 }
 
-func processMessage(message map[string]interface{}) {
+func processMessage(message map[string]interface{}) bool {
 	log.Printf("Received message: %+v", message)
-
-	// Add your processing logic here
-	// For example, you can save the message to a database, trigger an action, etc.
-	time.Sleep(2 * time.Second) // Simulate processing time
+	time.Sleep(1 * time.Second)
 	log.Printf("Message processed")
+	return true
 }
