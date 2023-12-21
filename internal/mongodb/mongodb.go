@@ -8,36 +8,46 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var Context = context.Background()
-var Database *mongo.Database
-
-func Initial() {
-	connection, err := connectToMongoDB()
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		Database = connection.Database("logger")
-	}
+// MongoDB encapsulates the MongoDB connection and related operations
+type MongoDB struct {
+	client   *mongo.Client
+	database *mongo.Database
 }
 
-func connectToMongoDB() (*mongo.Client, error) {
-	url := "mongodb://root:root@localhost:27017"
+var mongoDB *MongoDB
 
-	clientOptions := options.Client().ApplyURI(url)
+func InitMongoDB() {
+	connectionURL := "mongodb://root:root@localhost:27017"
+	clientOptions := options.Client().ApplyURI(connectionURL)
 
-	client, err := mongo.Connect(Context, clientOptions)
+	client, err := mongo.Connect(context.Background(), clientOptions)
 	if err != nil {
-		log.Printf("Failed to connect to MongoDB server: %v", err)
-		return nil, err
+		log.Fatalf("Failed to connect to MongoDB server: %v", err)
 	}
 
-	err = client.Ping(Context, nil)
+	err = client.Ping(context.Background(), nil)
 	if err != nil {
-		log.Printf("Failed to ping MongoDB server: %v", err)
-		client.Disconnect(Context)
-		return nil, err
+		log.Fatalf("Failed to ping MongoDB server: %v", err)
+		client.Disconnect(context.Background())
 	}
 
 	log.Println("Connected to MongoDB!")
-	return client, nil
+
+	mongoDB = &MongoDB{
+		client:   client,
+		database: client.Database("logger"),
+	}
+}
+
+func CloseMongoDB() {
+	if mongoDB != nil {
+		mongoDB.client.Disconnect(context.Background())
+		log.Println("Disconnected from MongoDB")
+	}
+}
+
+func InsertDocument(collectionName string, document interface{}) error {
+	collection := mongoDB.database.Collection(collectionName)
+	_, err := collection.InsertOne(context.Background(), document)
+	return err
 }

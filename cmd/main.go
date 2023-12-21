@@ -6,7 +6,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/bondzai/logger/internal/mongodb"
 	"github.com/bondzai/logger/internal/rabbitmq"
@@ -17,10 +16,12 @@ func init() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	log.Println("initial started")
 
-	mongodb.Initial()
+	mongodb.InitMongoDB()
 }
 
 func main() {
+	defer mongodb.CloseMongoDB()
+
 	connectionURL := "amqp://guest:guest@localhost:5672/"
 	logQueueName := "log"
 	failedQueueName := "failed"
@@ -36,23 +37,33 @@ func main() {
 	var wg sync.WaitGroup
 
 	go func() {
-		defer wg.Done() // Decrement the WaitGroup counter when done
+		defer wg.Done()
 		<-signals
 		log.Println("Received termination signal. Stopping consumer...")
 		consumer.Stop()
 	}()
 
-	wg.Add(1) // Increment the WaitGroup counter
+	wg.Add(1)
 
 	consumer.Start(processMessage)
 
 	log.Printf("Consumer started. To exit, press CTRL+C")
-	wg.Wait() // Wait for all goroutines to finish before exiting
+	wg.Wait()
 }
+
+// In your main.go file
 
 func processMessage(message map[string]interface{}) bool {
 	log.Printf("Received message: %+v", message)
-	time.Sleep(1 * time.Second)
-	log.Printf("Message processed")
+	// Process your message...
+
+	// Example: Inserting a document into a collection named "logs"
+	err := mongodb.InsertDocument("logs", message)
+	if err != nil {
+		log.Printf("Failed to insert document into MongoDB: %v", err)
+		return false
+	}
+
+	log.Printf("Message processed and inserted into MongoDB")
 	return true
 }
