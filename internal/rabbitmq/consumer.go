@@ -111,9 +111,10 @@ func (c *Consumer) Start(processMessage func(message map[string]interface{}) boo
 					// Handle the case where processing failed
 					// You may choose to nack, requeue, or handle the error accordingly
 					log.Println("Processing failed. Moving message to the error queue.")
-					// c.moveToErrorQueue(d.Body)
+					c.moveToErrorQueue(d.Body)
 					d.Ack(false)
 				}
+
 			case <-c.stop:
 				// Signal to stop processing messages
 				return
