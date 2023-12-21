@@ -1,153 +1,99 @@
+// rabbitmq_consumer.go
 package rabbitmq
 
 import (
 	"encoding/json"
 	"log"
-	"math/rand"
+	"sync"
 
 	"github.com/streadway/amqp"
 )
 
+type MessageHandler func(message map[string]interface{}) bool
+
 type Consumer struct {
-	conn          *amqp.Connection
-	channel       *amqp.Channel
-	queue         *amqp.Queue
-	errorQueue    *amqp.Queue
-	consumer      <-chan amqp.Delivery
-	errorProducer *amqp.Channel
-	stop          chan struct{} // Added a channel to signal consumer stop
+	conn    *amqp.Connection
+	channel *amqp.Channel
+	queue   amqp.Queue
 }
 
-func NewConsumer(connectionURL, queueName, errorQueueName string) (*Consumer, error) {
-	conn, err := amqp.Dial(connectionURL)
+func NewConsumer(amqpURI, queueName string) (*Consumer, error) {
+	conn, err := amqp.Dial(amqpURI)
 	if err != nil {
 		return nil, err
 	}
 
-	ch, err := conn.Channel()
+	channel, err := conn.Channel()
 	if err != nil {
 		return nil, err
 	}
 
-	q, err := ch.QueueDeclare(
-		queueName, // Queue name
-		true,      // Durable
-		false,     // Delete when unused
-		false,     // Exclusive
-		false,     // No-wait
-		nil,       // Arguments
+	queue, err := channel.QueueDeclare(
+		queueName, // name
+		true,      // durable
+		false,     // delete when unused
+		false,     // exclusive
+		false,     // no-wait
+		nil,       // arguments
 	)
-	if err != nil {
-		return nil, err
-	}
-
-	errorQueue, err := ch.QueueDeclare(
-		errorQueueName, // Error queue name
-		true,           // Durable
-		false,          // Delete when unused
-		false,          // Exclusive
-		false,          // No-wait
-		nil,            // Arguments
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	errorProducer, err := conn.Channel()
 	if err != nil {
 		return nil, err
 	}
 
 	return &Consumer{
-		conn:          conn,
-		channel:       ch,
-		queue:         &q,
-		errorQueue:    &errorQueue,
-		consumer:      nil,
-		errorProducer: errorProducer,
-		stop:          make(chan struct{}),
+		conn:    conn,
+		channel: channel,
+		queue:   queue,
 	}, nil
 }
 
-func (c *Consumer) Start(processMessage func(message map[string]interface{}) bool) {
-	consumer, err := c.channel.Consume(
-		c.queue.Name, // Queue
-		"",           // Consumer
-		true,         // Auto-acknowledge
-		false,        // Exclusive
-		false,        // No-local
-		false,        // No-wait
-		nil,          // Args
+func (c *Consumer) Start(handler MessageHandler) {
+	msgs, err := c.channel.Consume(
+		c.queue.Name, // queue
+		"",           // consumer
+		true,         // auto-ack
+		false,        // exclusive
+		false,        // no-local
+		false,        // no-wait
+		nil,          // args
 	)
 	if err != nil {
-		log.Fatal("Failed to register a consumer:", err)
-		return
+		log.Fatalf("Failed to register a consumer: %v", err)
 	}
 
-	c.consumer = consumer
+	var wg sync.WaitGroup
 
 	go func() {
-		for {
-			select {
-			case d, ok := <-c.consumer:
-				if !ok {
-					// Channel closed, exit the goroutine
-					return
-				}
+		defer wg.Done()
+		for msg := range msgs {
+			message := make(map[string]interface{})
 
-				var message map[string]interface{}
+			err := json.Unmarshal(msg.Body, &message)
+			if err != nil {
+				log.Printf("Failed to unmarshal message body: %v", err)
+				continue
+			}
 
-				err := json.Unmarshal(d.Body, &message)
-				if err != nil {
-					log.Println("Error decoding message:", err)
-					continue
-				}
-
-				success := !simulateTaskFailure()
-
-				if processMessage(message) && success {
-					d.Ack(false)
-				} else {
-					// Handle the case where processing failed
-					// You may choose to nack, requeue, or handle the error accordingly
-					log.Println("Processing failed. Moving message to the error queue.")
-					c.moveToErrorQueue(d.Body)
-					d.Ack(false)
-				}
-
-			case <-c.stop:
-				// Signal to stop processing messages
-				return
+			if !handler(message) {
+				log.Println("Message processing failed. Stopping consumer...")
+				c.Stop()
+				break
 			}
 		}
 	}()
+
+	wg.Add(1)
 }
 
 func (c *Consumer) Stop() {
-	close(c.stop)
-	c.channel.Close()
-	c.conn.Close()
-	c.errorProducer.Close()
-}
-
-func (c *Consumer) moveToErrorQueue(messageBody []byte) {
-	err := c.errorProducer.Publish(
-		"",                // Exchange
-		c.errorQueue.Name, // Routing key (queue name)
-		false,             // Mandatory
-		false,             // Immediate
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        messageBody,
-		},
-	)
+	log.Println("Closing RabbitMQ channel and connection...")
+	err := c.channel.Close()
 	if err != nil {
-		log.Println("Error moving message to the error queue:", err)
+		log.Printf("Error closing channel: %v", err)
 	}
-}
 
-// Function to simulate occasional task failure
-func simulateTaskFailure() bool {
-	// Simulate failure 20% of the time
-	return rand.Float64() < 0.2
+	err = c.conn.Close()
+	if err != nil {
+		log.Printf("Error closing connection: %v", err)
+	}
 }
