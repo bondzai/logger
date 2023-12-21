@@ -14,7 +14,6 @@ import (
 func init() {
 	log.SetPrefix("LOG: ")
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-	log.Println("initial started")
 
 	mongodb.InitMongoDB()
 }
