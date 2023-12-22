@@ -50,3 +50,25 @@ func InsertDocument(collectionName string, document interface{}) error {
 	_, err := collection.InsertOne(context.Background(), document)
 	return err
 }
+
+func InsertDocuments(collectionName string, documents []interface{}) error {
+	collection := mongoDB.database.Collection(collectionName)
+
+	opts := options.BulkWrite().SetOrdered(false)
+	opts.SetBypassDocumentValidation(true)
+
+	bulkModels := make([]mongo.WriteModel, len(documents))
+	for i, doc := range documents {
+		bulkModels[i] = mongo.NewInsertOneModel().SetDocument(doc)
+	}
+
+	result, err := collection.BulkWrite(context.Background(), bulkModels, opts)
+	if err != nil {
+		log.Printf("Failed to perform bulk write: %v", err)
+		return err
+	}
+
+	log.Printf("Inserted %d documents", result.InsertedCount)
+
+	return nil
+}
