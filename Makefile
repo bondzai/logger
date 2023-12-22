@@ -3,7 +3,7 @@
 BINARY_NAME := $(shell basename "$$PWD")
 MAIN_GO := ./cmd/main.go
 
-.PHONY: init main-init ez-init dogo-init clean build run gen-gitignore test up_build up_build_scaled dev
+.PHONY: init main-init ez-init dogo-init clean build run gen-gitignore test up_build up_build_scaled dev proto-gen
 
 init: gen-gitignore main-init ez-init dogo-init clean build
 
@@ -92,3 +92,7 @@ up_build_scaled:
 dev:
 	@echo "  >  Running application...\n"
 	go run $(MAIN_GO)
+
+proto-gen:
+	@echo "  >  Generating proto files...\n"
+	protoc --go_out=. ./proto/greeter.proto
