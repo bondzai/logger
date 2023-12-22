@@ -26,6 +26,35 @@ func (s *GreeterServer) SayHello(ctx context.Context, request *pb.HelloRequest) 
 	return &pb.HelloResponse{Message: message}, nil
 }
 
+func (s *GreeterServer) GetTasks(ctx context.Context, request *pb.TaskRequest) (*pb.TaskResponse, error) {
+	tasks := []*pb.Task{
+		{
+			Id:           1,
+			Organization: "ExampleOrg",
+			ProjectId:    123,
+			Type:         pb.TaskType_INTERVAL_TASK,
+			Name:         "Task1",
+			Interval:     60, // in seconds
+			CronExpr:     []string{"* * * * *"},
+			Disabled:     false,
+		},
+		{
+			Id:           2,
+			Organization: "ExampleOrg",
+			ProjectId:    456,
+			Type:         pb.TaskType_CRON_TASK,
+			Name:         "Task2",
+			CronExpr:     []string{"0 0 * * *"},
+			Disabled:     true,
+		},
+	}
+
+	fmt.Println("GetTasks called")
+	fmt.Println(request)
+
+	return &pb.TaskResponse{Tasks: tasks}, nil
+}
+
 func init() {
 	log.SetPrefix("LOG: ")
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
