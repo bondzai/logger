@@ -25,6 +25,8 @@ ez-init:
 	go get golang.org/x/tools/gopls@latest
 	go get github.com/bondzai/goez@v0.1.0
 	go get github.com/robfig/cron/v3@v3.0.0
+	go get google.golang.org/grpc
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 	go get -u github.com/streadway/amqp
 	go get github.com/prometheus/client_golang/prometheus
 	go get github.com/prometheus/client_golang/prometheus/promauto
@@ -96,3 +98,5 @@ dev:
 proto-gen:
 	@echo "  >  Generating proto files...\n"
 	protoc --go_out=. ./proto/greeter.proto
+	protoc --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. ./proto/greeter.proto
+
