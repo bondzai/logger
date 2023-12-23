@@ -2,21 +2,22 @@ syntax = "proto3";
 
 option go_package = "./proto";
 
-service Greeter {
-  rpc SayHello (HelloRequest) returns (HelloResponse);
+service AlertLogger {
+  rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse);
   rpc GetTasks (TaskRequest) returns (TaskResponse);
 }
 
-message HelloRequest {
-  string name = 1;
+message HealthCheckRequest {
 }
 
-message HelloResponse {
-  string message = 1;
+message HealthCheckResponse {
+  string status = 1;
 }
 
 message TaskRequest {
-  // You can include any parameters needed for the request
+  string organization = 1;
+  int32 project_id = 2;
+  int32 limit = 3;
 }
 
 message TaskResponse {
@@ -24,9 +25,9 @@ message TaskResponse {
 }
 
 enum TaskType {
-  DEFAUALT_TASK = 0;
-  INTERVAL_TASK = 1;
-  CRON_TASK = 2;
+  UNKNOWN = 0;
+  INTERVAL = 1;
+  CRON = 2;
 }
 
 message Task {
