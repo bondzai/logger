@@ -99,4 +99,3 @@ proto-gen:
 	@echo "  >  Generating proto files...\n"
 	protoc --go_out=. ./proto/greeter.proto
 	protoc --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. ./proto/greeter.proto
-

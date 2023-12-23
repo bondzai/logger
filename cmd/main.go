@@ -34,7 +34,7 @@ func (s *GreeterServer) GetTasks(ctx context.Context, request *pb.TaskRequest) (
 			ProjectId:    123,
 			Type:         pb.TaskType_INTERVAL_TASK,
 			Name:         "Task1",
-			Interval:     60, // in seconds
+			Interval:     60,
 			CronExpr:     []string{"* * * * *"},
 			Disabled:     false,
 		},
@@ -48,9 +48,6 @@ func (s *GreeterServer) GetTasks(ctx context.Context, request *pb.TaskRequest) (
 			Disabled:     true,
 		},
 	}
-
-	fmt.Println("GetTasks called")
-	fmt.Println(request)
 
 	return &pb.TaskResponse{Tasks: tasks}, nil
 }
