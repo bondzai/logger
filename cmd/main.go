@@ -1,56 +1,16 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"log"
-	"net"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 
-	pb "github.com/bondzai/logger/proto"
-
+	"github.com/bondzai/logger/internal/api"
 	"github.com/bondzai/logger/internal/mongodb"
 	"github.com/bondzai/logger/internal/rabbitmq"
-	"google.golang.org/grpc"
 )
-
-type GreeterServer struct {
-	pb.UnimplementedGreeterServer
-}
-
-func (s *GreeterServer) SayHello(ctx context.Context, request *pb.HelloRequest) (*pb.HelloResponse, error) {
-	message := fmt.Sprintf("Hello, %s!", request.Name)
-	return &pb.HelloResponse{Message: message}, nil
-}
-
-func (s *GreeterServer) GetTasks(ctx context.Context, request *pb.TaskRequest) (*pb.TaskResponse, error) {
-	tasks := []*pb.Task{
-		{
-			Id:           1,
-			Organization: "ExampleOrg",
-			ProjectId:    123,
-			Type:         pb.TaskType_INTERVAL_TASK,
-			Name:         "Task1",
-			Interval:     60,
-			CronExpr:     []string{"* * * * *"},
-			Disabled:     false,
-		},
-		{
-			Id:           2,
-			Organization: "ExampleOrg",
-			ProjectId:    456,
-			Type:         pb.TaskType_CRON_TASK,
-			Name:         "Task2",
-			CronExpr:     []string{"0 0 * * *"},
-			Disabled:     true,
-		},
-	}
-
-	return &pb.TaskResponse{Tasks: tasks}, nil
-}
 
 func init() {
 	log.SetPrefix("LOG: ")
@@ -70,7 +30,7 @@ func main() {
 	// Start gRPC server
 	go func() {
 		defer wg.Done()
-		err := startGRPCServer()
+		err := api.StartGRPCServer()
 		if err != nil {
 			log.Fatalf("Failed to start gRPC server: %v", err)
 		}
@@ -110,17 +70,4 @@ func processMessage(message map[string]interface{}) bool {
 
 	log.Printf("Message processed and inserted into MongoDB: %+v", message)
 	return true
-}
-
-func startGRPCServer() error {
-	listener, err := net.Listen("tcp", ":50051")
-	if err != nil {
-		return fmt.Errorf("failed to listen: %v", err)
-	}
-
-	server := grpc.NewServer()
-	pb.RegisterGreeterServer(server, &GreeterServer{})
-
-	log.Println("gRPC server listening on :50051")
-	return server.Serve(listener)
 }
