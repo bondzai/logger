@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 
+	"github.com/bondzai/logger/internal/model"
 	"github.com/bondzai/logger/internal/mongodb"
 	pb "github.com/bondzai/logger/proto"
 	"go.mongodb.org/mongo-driver/bson"
@@ -15,30 +16,18 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const (
+	protocol = "tcp"
+	port     = ":50051"
+)
+
 type LoggerServer struct {
 	pb.UnimplementedAlertLoggerServer
 	Database *mongodb.MongoDB
 }
 
-type Task struct {
-	ID           int         `bson:"task_id" json:"task_id"`
-	Organization string      `bson:"organization" json:"organization"`
-	ProjectID    int         `bson:"project_id" json:"project_id"`
-	Type         pb.TaskType `bson:"type" json:"type"`
-	Name         string      `bson:"task_name" json:"task_name"`
-	Interval     int64       `bson:"interval" json:"interval"`
-	CronExpr     []string    `bson:"task_cron_expression" json:"task_cron_expression"`
-	Disabled     bool        `bson:"disabled" json:"disabled"`
-	TimeStamp    string      `bson:"timestamp" json:"timestamp"`
-}
-
-func (s *LoggerServer) HealthCheck(ctx context.Context, request *pb.HealthCheckRequest) (*pb.HealthCheckResponse, error) {
-	message := fmt.Sprintf("Health check successful.%s", request)
-	return &pb.HealthCheckResponse{Status: message}, nil
-}
-
 func StartGRPCServer(database *mongodb.MongoDB) error {
-	listener, err := net.Listen("tcp", ":50051")
+	listener, err := net.Listen(protocol, port)
 	if err != nil {
 		return fmt.Errorf("failed to listen: %v", err)
 	}
@@ -46,12 +35,17 @@ func StartGRPCServer(database *mongodb.MongoDB) error {
 	server := grpc.NewServer()
 	pb.RegisterAlertLoggerServer(server, &LoggerServer{Database: database})
 
-	log.Println("gRPC server listening on :50051")
+	log.Println("gRPC server listening on", port)
 	return server.Serve(listener)
 }
 
-func (s *LoggerServer) GetTasks(ctx context.Context, req *pb.TaskRequest) (*pb.TaskResponse, error) {
-	results, err := s.Database.FindLatestDocuments("logs")
+func (s *LoggerServer) HealthCheck(ctx context.Context, request *pb.HealthCheckRequest) (*pb.HealthCheckResponse, error) {
+	message := fmt.Sprintf("Health check successful.%s", request)
+	return &pb.HealthCheckResponse{Status: message}, nil
+}
+
+func (s *LoggerServer) GetLogs(ctx context.Context, req *pb.TaskRequest) (*pb.TaskResponse, error) {
+	results, err := s.Database.FindDocuments("logs")
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to get latest tasks: %v", err)
 	}
@@ -72,7 +66,7 @@ func (s *LoggerServer) GetTasks(ctx context.Context, req *pb.TaskRequest) (*pb.T
 		}
 
 		// Use bson.Unmarshal to decode the byte slice into a Task struct
-		var task Task
+		var task model.Task
 		err = bson.Unmarshal(data, &task)
 		if err != nil {
 			log.Printf("Failed to unmarshal document: %v", err)

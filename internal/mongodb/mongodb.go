@@ -77,7 +77,7 @@ func (m *MongoDB) InsertDocuments(collectionName string, documents []interface{}
 	return nil
 }
 
-func (m *MongoDB) FindLatestDocuments(collectionName string) ([]interface{}, error) {
+func (m *MongoDB) FindDocuments(collectionName string) ([]interface{}, error) {
 	collection := m.database.Collection(collectionName)
 
 	findOptions := options.Find().SetSort(
