@@ -17,7 +17,7 @@ import (
 
 type LoggerServer struct {
 	pb.UnimplementedAlertLoggerServer
-	Database mongodb.MongoDB
+	Database *mongodb.MongoDB
 }
 
 type Task struct {
@@ -37,7 +37,7 @@ func (s *LoggerServer) HealthCheck(ctx context.Context, request *pb.HealthCheckR
 	return &pb.HealthCheckResponse{Status: message}, nil
 }
 
-func StartGRPCServer(database mongodb.MongoDB) error {
+func StartGRPCServer(database *mongodb.MongoDB) error {
 	listener, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		return fmt.Errorf("failed to listen: %v", err)
@@ -51,7 +51,7 @@ func StartGRPCServer(database mongodb.MongoDB) error {
 }
 
 func (s *LoggerServer) GetTasks(ctx context.Context, req *pb.TaskRequest) (*pb.TaskResponse, error) {
-	results, err := s.Database.FindLatestDocuments("logs") // Replace with your actual collection name
+	results, err := s.Database.FindLatestDocuments("logs")
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to get latest tasks: %v", err)
 	}

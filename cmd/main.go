@@ -34,7 +34,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 
-		err = api.StartGRPCServer(*mongoDB)
+		err = api.StartGRPCServer(mongoDB)
 		if err != nil {
 			log.Fatalf("Failed to start gRPC server: %v", err)
 		}
