@@ -102,15 +102,13 @@ func main() {
 }
 
 func processMessage(message map[string]interface{}) bool {
-	log.Printf("Received message: %+v", message)
-
 	err := mongodb.InsertDocument("logs", message)
 	if err != nil {
 		log.Printf("Failed to insert document into MongoDB: %v", err)
 		return false
 	}
 
-	log.Printf("Message processed and inserted into MongoDB")
+	log.Printf("Message processed and inserted into MongoDB: %+v", message)
 	return true
 }
 
