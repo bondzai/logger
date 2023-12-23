@@ -11,14 +11,16 @@ import (
 	pb "github.com/bondzai/logger/proto"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 const (
-	protocol = "tcp"
-	port     = ":50051"
+	protocol     = "tcp"
+	port         = ":50051"
+	defaultLimit = 1000
 )
 
 type LoggerServer struct {
@@ -45,11 +47,44 @@ func (s *LoggerServer) HealthCheck(ctx context.Context, request *pb.HealthCheckR
 }
 
 func (s *LoggerServer) GetLogs(ctx context.Context, req *pb.TaskRequest) (*pb.TaskResponse, error) {
-	results, err := s.Database.FindDocuments("logs")
+	query := BuildMongoDBQuery(req)
+	findOptions := BuildFindOptions(req.Limit)
+
+	results, err := s.Database.FindDocuments("logs", query, findOptions)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to get latest tasks: %v", err)
+		return nil, status.Errorf(codes.Internal, "Failed to get logs: %v", err)
 	}
 
+	tasks := ConvertToProtoTasks(results)
+	return &pb.TaskResponse{Tasks: tasks}, nil
+}
+
+func BuildMongoDBQuery(req *pb.TaskRequest) bson.D {
+	query := bson.D{}
+
+	if req.Organization != "" {
+		query = append(query, bson.E{Key: "organization", Value: req.Organization})
+	}
+
+	if req.ProjectId != 0 {
+		query = append(query, bson.E{Key: "project_id", Value: req.ProjectId})
+	}
+
+	return query
+}
+
+func BuildFindOptions(limit int32) *options.FindOptions {
+	findOptions := options.Find().SetSort(
+		bson.D{{Key: "timestamp", Value: -1}})
+
+	if limit > 0 {
+		return findOptions.SetLimit(int64(limit))
+	}
+
+	return findOptions.SetLimit(defaultLimit)
+}
+
+func ConvertToProtoTasks(results []interface{}) []*pb.Task {
 	var tasks []*pb.Task
 	for _, result := range results {
 		document, ok := result.(primitive.D)
@@ -87,6 +122,5 @@ func (s *LoggerServer) GetLogs(ctx context.Context, req *pb.TaskRequest) (*pb.Ta
 
 		tasks = append(tasks, pbTask)
 	}
-
-	return &pb.TaskResponse{Tasks: tasks}, nil
+	return tasks
 }
