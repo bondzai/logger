@@ -47,19 +47,20 @@ func (s *LoggerServer) HealthCheck(ctx context.Context, request *pb.HealthCheckR
 }
 
 func (s *LoggerServer) GetLogs(ctx context.Context, req *pb.TaskRequest) (*pb.TaskResponse, error) {
-	query := BuildMongoDBQuery(req)
-	findOptions := BuildFindOptions(req.Limit)
+	query := buildMongoQuery(req)
+
+	findOptions := buildMongoFindOptions(req.Limit)
 
 	results, err := s.Database.FindDocuments("logs", query, findOptions)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to get logs: %v", err)
 	}
 
-	tasks := ConvertToProtoTasks(results)
+	tasks := convertToProtoTasks(results)
 	return &pb.TaskResponse{Tasks: tasks}, nil
 }
 
-func BuildMongoDBQuery(req *pb.TaskRequest) bson.D {
+func buildMongoQuery(req *pb.TaskRequest) bson.D {
 	query := bson.D{}
 
 	if req.Organization != "" {
@@ -73,9 +74,8 @@ func BuildMongoDBQuery(req *pb.TaskRequest) bson.D {
 	return query
 }
 
-func BuildFindOptions(limit int32) *options.FindOptions {
-	findOptions := options.Find().SetSort(
-		bson.D{{Key: "timestamp", Value: -1}})
+func buildMongoFindOptions(limit int32) *options.FindOptions {
+	findOptions := options.Find().SetSort(bson.D{{Key: "timestamp", Value: -1}})
 
 	if limit > 0 {
 		return findOptions.SetLimit(int64(limit))
@@ -84,7 +84,7 @@ func BuildFindOptions(limit int32) *options.FindOptions {
 	return findOptions.SetLimit(defaultLimit)
 }
 
-func ConvertToProtoTasks(results []interface{}) []*pb.Task {
+func convertToProtoTasks(results []interface{}) []*pb.Task {
 	var tasks []*pb.Task
 	for _, result := range results {
 		document, ok := result.(primitive.D)
