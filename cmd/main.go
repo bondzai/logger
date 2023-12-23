@@ -15,22 +15,26 @@ import (
 func init() {
 	log.SetPrefix("LOG: ")
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-
-	mongodb.InitMongoDB()
 }
 
 func main() {
-	defer mongodb.CloseMongoDB()
-
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
 	var wg sync.WaitGroup
 
+	mongoDB := mongodb.NewMongoDB()
+	err := mongoDB.Connect("mongodb://root:root@localhost:27017", "logger")
+	if err != nil {
+		log.Fatalf("Failed to connect to MongoDB: %v", err)
+	}
+	defer mongoDB.CloseMongoDB()
+
 	// Start gRPC server
 	go func() {
 		defer wg.Done()
-		err := api.StartGRPCServer()
+
+		err = api.StartGRPCServer(*mongoDB)
 		if err != nil {
 			log.Fatalf("Failed to start gRPC server: %v", err)
 		}
@@ -54,15 +58,17 @@ func main() {
 	// Start RabbitMQ consumer
 	go func() {
 		defer wg.Done()
-		rabbitMQConsumer.Start(processMessage)
+		rabbitMQConsumer.Start(func(message map[string]interface{}) bool {
+			return processMessage(mongoDB, message)
+		})
 	}()
 
 	log.Printf("Consumer and gRPC server started. To exit, press CTRL+C")
 	wg.Wait()
 }
 
-func processMessage(message map[string]interface{}) bool {
-	err := mongodb.InsertDocument("logs", message)
+func processMessage(mongoDB *mongodb.MongoDB, message map[string]interface{}) bool {
+	err := mongoDB.InsertDocument("logs", message)
 	if err != nil {
 		log.Printf("Failed to insert document into MongoDB: %v", err)
 		return false
