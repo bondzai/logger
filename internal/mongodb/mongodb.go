@@ -14,7 +14,6 @@ type MongoDB struct {
 	database *mongo.Database
 }
 
-// NewMongoDB creates a new instance of MongoDB.
 func NewMongoDB() *MongoDB {
 	return &MongoDB{}
 }
