@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -71,4 +72,35 @@ func InsertDocuments(collectionName string, documents []interface{}) error {
 	log.Printf("Inserted %d documents", result.InsertedCount)
 
 	return nil
+}
+
+func FindLatestDocuments(collectionName string) ([]interface{}, error) {
+	collection := mongoDB.database.Collection(collectionName)
+
+	findOptions := options.Find().SetSort(
+		bson.D{{Key: "timestamp", Value: -1}}).SetLimit(5)
+
+	cursor, err := collection.Find(context.Background(), bson.D{}, findOptions)
+	if err != nil {
+		log.Printf("Failed to execute find operation: %v", err)
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+
+	var results []interface{}
+	for cursor.Next(context.Background()) {
+		var result interface{}
+		if err := cursor.Decode(&result); err != nil {
+			log.Printf("Failed to decode document: %v", err)
+			return nil, err
+		}
+		results = append(results, result)
+	}
+
+	if err := cursor.Err(); err != nil {
+		log.Printf("Cursor iteration error: %v", err)
+		return nil, err
+	}
+
+	return results, nil
 }

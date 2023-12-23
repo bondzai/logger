@@ -3,7 +3,7 @@
 BINARY_NAME := $(shell basename "$$PWD")
 MAIN_GO := ./cmd/main.go
 
-.PHONY: init main-init ez-init dogo-init clean build run gen-gitignore test up_build up_build_scaled dev
+.PHONY: init main-init ez-init dogo-init clean build run gen-gitignore test up_build up_build_scaled dev proto-gen
 
 init: gen-gitignore main-init ez-init dogo-init clean build
 
@@ -25,6 +25,8 @@ ez-init:
 	go get golang.org/x/tools/gopls@latest
 	go get github.com/bondzai/goez@v0.1.0
 	go get github.com/robfig/cron/v3@v3.0.0
+	go get google.golang.org/grpc
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 	go get -u github.com/streadway/amqp
 	go get github.com/prometheus/client_golang/prometheus
 	go get github.com/prometheus/client_golang/prometheus/promauto
@@ -92,3 +94,12 @@ up_build_scaled:
 dev:
 	@echo "  >  Running application...\n"
 	go run $(MAIN_GO)
+
+proto-gen:
+	@read -p "Enter the path to the proto file (default: ./proto/) : " PROTO_PATH; \
+	PROTO_PATH=$${PROTO_PATH:-./proto/}; \
+	read -p "Enter the name of the proto file (e.g., yourprotofile.proto): " PROTO_FILENAME; \
+	PROTO_FILE=$$PROTO_PATH$$PROTO_FILENAME; \
+	echo "  >  Generating proto files from $$PROTO_FILE...\n"; \
+	protoc --go_out=. $$PROTO_FILE; \
+	protoc --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. $$PROTO_FILE

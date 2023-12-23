@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+option go_package = "./proto";
+
+service AlertLogger {
+  rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse);
+  rpc GetTasks (TaskRequest) returns (TaskResponse);
+}
+
+message HealthCheckRequest {
+}
+
+message HealthCheckResponse {
+  string status = 1;
+}
+
+message TaskRequest {
+  string organization = 1;
+  int32 project_id = 2;
+  int32 limit = 3;
+}
+
+message TaskResponse {
+  repeated Task tasks = 1;
+}
+
+enum TaskType {
+  UNKNOWN = 0;
+  INTERVAL = 1;
+  CRON = 2;
+}
+
+message Task {
+  int32 id = 1;
+  string organization = 2;
+  int32 project_id = 3;
+  TaskType type = 4;
+  string name = 5;
+  int64 interval = 6;
+  repeated string cronExpr = 7;
+  bool disabled = 8;
+}
