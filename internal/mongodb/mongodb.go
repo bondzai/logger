@@ -14,46 +14,49 @@ type MongoDB struct {
 	database *mongo.Database
 }
 
-var mongoDB *MongoDB
+// NewMongoDB creates a new instance of MongoDB.
+func NewMongoDB() *MongoDB {
+	return &MongoDB{}
+}
 
-func InitMongoDB() {
-	connectionURL := "mongodb://root:root@localhost:27017"
+func (m *MongoDB) Connect(connectionURL, dbName string) error {
 	clientOptions := options.Client().ApplyURI(connectionURL)
 
 	client, err := mongo.Connect(context.Background(), clientOptions)
 	if err != nil {
 		log.Fatalf("Failed to connect to MongoDB server: %v", err)
+		return err
 	}
 
 	err = client.Ping(context.Background(), nil)
 	if err != nil {
 		log.Fatalf("Failed to ping MongoDB server: %v", err)
 		client.Disconnect(context.Background())
+		return err
 	}
 
 	log.Println("Connected to MongoDB!")
 
-	mongoDB = &MongoDB{
-		client:   client,
-		database: client.Database("logger"),
-	}
+	m.client = client
+	m.database = client.Database(dbName)
+	return nil
 }
 
-func CloseMongoDB() {
-	if mongoDB != nil {
-		mongoDB.client.Disconnect(context.Background())
+func (m *MongoDB) CloseMongoDB() {
+	if m.client != nil {
+		m.client.Disconnect(context.Background())
 		log.Println("Disconnected from MongoDB")
 	}
 }
 
-func InsertDocument(collectionName string, document interface{}) error {
-	collection := mongoDB.database.Collection(collectionName)
+func (m *MongoDB) InsertDocument(collectionName string, document interface{}) error {
+	collection := m.database.Collection(collectionName)
 	_, err := collection.InsertOne(context.Background(), document)
 	return err
 }
 
-func InsertDocuments(collectionName string, documents []interface{}) error {
-	collection := mongoDB.database.Collection(collectionName)
+func (m *MongoDB) InsertDocuments(collectionName string, documents []interface{}) error {
+	collection := m.database.Collection(collectionName)
 
 	opts := options.BulkWrite().SetOrdered(false)
 	opts.SetBypassDocumentValidation(true)
@@ -74,8 +77,8 @@ func InsertDocuments(collectionName string, documents []interface{}) error {
 	return nil
 }
 
-func FindLatestDocuments(collectionName string) ([]interface{}, error) {
-	collection := mongoDB.database.Collection(collectionName)
+func (m *MongoDB) FindLatestDocuments(collectionName string) ([]interface{}, error) {
+	collection := m.database.Collection(collectionName)
 
 	findOptions := options.Find().SetSort(
 		bson.D{{Key: "timestamp", Value: -1}}).SetLimit(5)
