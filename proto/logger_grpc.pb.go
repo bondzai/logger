@@ -20,7 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 
 const (
 	AlertLogger_HealthCheck_FullMethodName = "/AlertLogger/HealthCheck"
-	AlertLogger_GetTasks_FullMethodName    = "/AlertLogger/GetTasks"
+	AlertLogger_GetLogs_FullMethodName     = "/AlertLogger/GetLogs"
 )
 
 // AlertLoggerClient is the client API for AlertLogger service.
@@ -28,7 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AlertLoggerClient interface {
 	HealthCheck(ctx context.Context, in *HealthCheckRequest, opts ...grpc.CallOption) (*HealthCheckResponse, error)
-	GetTasks(ctx context.Context, in *TaskRequest, opts ...grpc.CallOption) (*TaskResponse, error)
+	GetLogs(ctx context.Context, in *TaskRequest, opts ...grpc.CallOption) (*TaskResponse, error)
 }
 
 type alertLoggerClient struct {
@@ -48,9 +48,9 @@ func (c *alertLoggerClient) HealthCheck(ctx context.Context, in *HealthCheckRequ
 	return out, nil
 }
 
-func (c *alertLoggerClient) GetTasks(ctx context.Context, in *TaskRequest, opts ...grpc.CallOption) (*TaskResponse, error) {
+func (c *alertLoggerClient) GetLogs(ctx context.Context, in *TaskRequest, opts ...grpc.CallOption) (*TaskResponse, error) {
 	out := new(TaskResponse)
-	err := c.cc.Invoke(ctx, AlertLogger_GetTasks_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, AlertLogger_GetLogs_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (c *alertLoggerClient) GetTasks(ctx context.Context, in *TaskRequest, opts 
 // for forward compatibility
 type AlertLoggerServer interface {
 	HealthCheck(context.Context, *HealthCheckRequest) (*HealthCheckResponse, error)
-	GetTasks(context.Context, *TaskRequest) (*TaskResponse, error)
+	GetLogs(context.Context, *TaskRequest) (*TaskResponse, error)
 	mustEmbedUnimplementedAlertLoggerServer()
 }
 
@@ -73,8 +73,8 @@ type UnimplementedAlertLoggerServer struct {
 func (UnimplementedAlertLoggerServer) HealthCheck(context.Context, *HealthCheckRequest) (*HealthCheckResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HealthCheck not implemented")
 }
-func (UnimplementedAlertLoggerServer) GetTasks(context.Context, *TaskRequest) (*TaskResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetTasks not implemented")
+func (UnimplementedAlertLoggerServer) GetLogs(context.Context, *TaskRequest) (*TaskResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLogs not implemented")
 }
 func (UnimplementedAlertLoggerServer) mustEmbedUnimplementedAlertLoggerServer() {}
 
@@ -107,20 +107,20 @@ func _AlertLogger_HealthCheck_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AlertLogger_GetTasks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _AlertLogger_GetLogs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TaskRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AlertLoggerServer).GetTasks(ctx, in)
+		return srv.(AlertLoggerServer).GetLogs(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AlertLogger_GetTasks_FullMethodName,
+		FullMethod: AlertLogger_GetLogs_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AlertLoggerServer).GetTasks(ctx, req.(*TaskRequest))
+		return srv.(AlertLoggerServer).GetLogs(ctx, req.(*TaskRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -137,8 +137,8 @@ var AlertLogger_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AlertLogger_HealthCheck_Handler,
 		},
 		{
-			MethodName: "GetTasks",
-			Handler:    _AlertLogger_GetTasks_Handler,
+			MethodName: "GetLogs",
+			Handler:    _AlertLogger_GetLogs_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
