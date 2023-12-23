@@ -96,6 +96,10 @@ dev:
 	go run $(MAIN_GO)
 
 proto-gen:
-	@echo "  >  Generating proto files...\n"
-	protoc --go_out=. ./proto/greeter.proto
-	protoc --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. ./proto/greeter.proto
+	@read -p "Enter the path to the proto file (e.g., ./proto/) : " PROTO_PATH; \
+	read -p "Enter the name of the proto file (e.g., yourprotofile.proto): " PROTO_FILENAME; \
+	PROTO_FILE=$$PROTO_PATH$$PROTO_FILENAME; \
+	echo "  >  Generating proto files from $$PROTO_FILE...\n"; \
+	protoc --go_out=. $$PROTO_FILE; \
+	protoc --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. $$PROTO_FILE
+
