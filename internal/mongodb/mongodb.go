@@ -14,7 +14,6 @@ type MongoDB struct {
 	database *mongo.Database
 }
 
-// NewMongoDB creates a new instance of MongoDB.
 func NewMongoDB() *MongoDB {
 	return &MongoDB{}
 }
@@ -77,13 +76,10 @@ func (m *MongoDB) InsertDocuments(collectionName string, documents []interface{}
 	return nil
 }
 
-func (m *MongoDB) FindLatestDocuments(collectionName string) ([]interface{}, error) {
+func (m *MongoDB) FindDocuments(collectionName string, query bson.D, findOptions *options.FindOptions) ([]interface{}, error) {
 	collection := m.database.Collection(collectionName)
 
-	findOptions := options.Find().SetSort(
-		bson.D{{Key: "timestamp", Value: -1}}).SetLimit(5)
-
-	cursor, err := collection.Find(context.Background(), bson.D{}, findOptions)
+	cursor, err := collection.Find(context.Background(), query, findOptions)
 	if err != nil {
 		log.Printf("Failed to execute find operation: %v", err)
 		return nil, err
