@@ -12,6 +12,14 @@ import (
 	"github.com/bondzai/logger/internal/rabbitmq"
 )
 
+const (
+	mongoURL  = "mongodb://root:root@localhost:27017"
+	mongoDB   = "logger"
+	mongoCol  = "logs"
+	rabbitURL = "amqp://guest:guest@localhost:5672/"
+	rabbitKey = "logs"
+)
+
 func init() {
 	log.SetPrefix("LOG: ")
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
@@ -23,25 +31,23 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	mongoDB := mongodb.NewMongoDB()
-	err := mongoDB.Connect("mongodb://root:root@localhost:27017", "logger")
+	mongo := mongodb.NewMongoDB()
+	err := mongo.Connect(mongoURL, mongoDB)
 	if err != nil {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
 	}
-	defer mongoDB.CloseMongoDB()
+	defer mongo.CloseMongoDB()
 
-	// Start gRPC server
 	go func() {
 		defer wg.Done()
 
-		err = api.StartGRPCServer(mongoDB)
+		err = api.StartGRPCServer(mongo)
 		if err != nil {
 			log.Fatalf("Failed to start gRPC server: %v", err)
 		}
 	}()
 
-	// RabbitMQ consumer setup
-	rabbitMQConsumer, err := rabbitmq.NewConsumer("amqp://guest:guest@localhost:5672/", "log")
+	rabbitMQConsumer, err := rabbitmq.NewConsumer(rabbitURL, rabbitKey)
 	if err != nil {
 		log.Fatalf("Failed to create RabbitMQ consumer: %v", err)
 	}
@@ -55,11 +61,10 @@ func main() {
 
 	wg.Add(2)
 
-	// Start RabbitMQ consumer
 	go func() {
 		defer wg.Done()
 		rabbitMQConsumer.Start(func(message map[string]interface{}) bool {
-			return processMessage(mongoDB, message)
+			return processMessage(mongo, message)
 		})
 	}()
 
@@ -67,8 +72,8 @@ func main() {
 	wg.Wait()
 }
 
-func processMessage(mongoDB *mongodb.MongoDB, message map[string]interface{}) bool {
-	err := mongoDB.InsertDocument("logs", message)
+func processMessage(mongo *mongodb.MongoDB, message map[string]interface{}) bool {
+	err := mongo.InsertDocument(mongoCol, message)
 	if err != nil {
 		log.Printf("Failed to insert document into MongoDB: %v", err)
 		return false
