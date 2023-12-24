@@ -1,7 +1,7 @@
-// rabbitmq_consumer.go
 package rabbitmq
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"sync"
@@ -47,7 +47,9 @@ func NewConsumer(amqpURI, queueName string) (*Consumer, error) {
 	}, nil
 }
 
-func (c *Consumer) Start(handler MessageHandler) {
+func (c *Consumer) Start(ctx context.Context, handler MessageHandler, wg *sync.WaitGroup) error {
+	defer wg.Done()
+
 	msgs, err := c.channel.Consume(
 		c.queue.Name, // queue
 		"",           // consumer
@@ -58,16 +60,21 @@ func (c *Consumer) Start(handler MessageHandler) {
 		nil,          // args
 	)
 	if err != nil {
-		log.Fatalf("Failed to register a consumer: %v", err)
+		return err
 	}
 
-	var wg sync.WaitGroup
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("Received cancellation signal. Stopping consumer...")
+			return nil
+		case msg, ok := <-msgs:
+			if !ok {
+				log.Println("Channel closed. Stopping consumer...")
+				return nil
+			}
 
-	go func() {
-		defer wg.Done()
-		for msg := range msgs {
 			message := make(map[string]interface{})
-
 			err := json.Unmarshal(msg.Body, &message)
 			if err != nil {
 				log.Printf("Failed to unmarshal message body: %v", err)
@@ -76,24 +83,14 @@ func (c *Consumer) Start(handler MessageHandler) {
 
 			if !handler(message) {
 				log.Println("Message processing failed. Stopping consumer...")
-				c.Stop()
-				break
+				return nil
 			}
 		}
-	}()
-
-	wg.Add(1)
+	}
 }
 
 func (c *Consumer) Stop() {
 	log.Println("Closing RabbitMQ channel and connection...")
-	err := c.channel.Close()
-	if err != nil {
-		log.Printf("Error closing channel: %v", err)
-	}
-
-	err = c.conn.Close()
-	if err != nil {
-		log.Printf("Error closing connection: %v", err)
-	}
+	_ = c.channel.Close()
+	_ = c.conn.Close()
 }

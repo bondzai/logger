@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"os/signal"
@@ -26,6 +27,9 @@ func init() {
 }
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
@@ -38,34 +42,36 @@ func main() {
 	}
 	defer mongo.CloseMongoDB()
 
-	go func() {
-		defer wg.Done()
-
-		err = api.StartGRPCServer(mongo)
-		if err != nil {
-			log.Fatalf("Failed to start gRPC server: %v", err)
-		}
-	}()
-
 	rabbitMQConsumer, err := rabbitmq.NewConsumer(rabbitURL, rabbitKey)
 	if err != nil {
 		log.Fatalf("Failed to create RabbitMQ consumer: %v", err)
 	}
 
+	wg.Add(3)
+
+	go func() {
+		defer wg.Done()
+		err := api.StartGRPCServer(mongo)
+		if err != nil {
+			log.Fatalf("Failed to start gRPC server: %v", err)
+		}
+	}()
+
 	go func() {
 		defer wg.Done()
 		<-signals
-		log.Println("Received termination signal. Stopping consumer...")
-		rabbitMQConsumer.Stop()
+		log.Println("Received termination signal. Cancelling context...")
+		cancel()
 	}()
-
-	wg.Add(2)
 
 	go func() {
 		defer wg.Done()
-		rabbitMQConsumer.Start(func(message map[string]interface{}) bool {
+		err := rabbitMQConsumer.Start(ctx, func(message map[string]interface{}) bool {
 			return processMessage(mongo, message)
-		})
+		}, &wg)
+		if err != nil {
+			log.Printf("RabbitMQ consumer error: %v", err)
+		}
 	}()
 
 	log.Printf("Consumer and gRPC server started. To exit, press CTRL+C")
