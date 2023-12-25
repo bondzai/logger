@@ -46,7 +46,21 @@ func (s *LoggerServer) HealthCheck(ctx context.Context, request *pb.HealthCheckR
 	return &pb.HealthCheckResponse{Status: message}, nil
 }
 
+func (s *LoggerServer) validateGetLogsRequest(req *pb.TaskRequest) error {
+	if req.Organization == "" {
+		return fmt.Errorf("organization cannot be empty")
+	}
+	if req.ProjectId == 0 {
+		return fmt.Errorf("project id cannot be empty")
+	}
+	return nil
+}
+
 func (s *LoggerServer) GetLogs(ctx context.Context, req *pb.TaskRequest) (*pb.TaskResponse, error) {
+	if err := s.validateGetLogsRequest(req); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid request: %v", err)
+	}
+
 	query := buildMongoQuery(req)
 
 	findOptions := buildMongoFindOptions(req.Limit)
