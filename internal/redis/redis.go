@@ -5,55 +5,34 @@ import (
 	"encoding/json"
 	"log"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/bondzai/logger/internal/util"
-
 	"github.com/redis/go-redis/v9"
 )
 
-var (
-	RedisHost     = util.GetEnv("REDIS_HOST", "")
-	RedisPassword = util.GetEnv("REDIS_PASSWORD", "")
-	RedisDB, _    = strconv.Atoi(util.GetEnv("REDIS_DB", ""))
-)
-
-var (
+type RedisClient struct {
 	client *redis.Client
-	once   sync.Once
-)
-
-func Initialize() *redis.Client {
-	once.Do(func() {
-		client = redis.NewClient(&redis.Options{
-			Addr:     RedisHost,
-			Password: RedisPassword,
-			DB:       RedisDB,
-		})
-	})
-
-	return client
 }
 
-func GetClient() *redis.Client {
-	if client == nil {
-		return Initialize()
+func NewRedisClient() *RedisClient {
+	return &RedisClient{
+		client: redis.NewClient(&redis.Options{
+			Addr:     util.GetEnv("REDIS_HOST", ""),
+			Password: util.GetEnv("REDIS_PASSWORD", ""),
+			DB:       getIntEnv("REDIS_DB", 0),
+		}),
 	}
-
-	return client
 }
 
-func SetData(cacheKey string, tasks interface{}) error {
-	client := GetClient()
-
-	jsonValue, err := json.Marshal(tasks)
+func (r *RedisClient) SetData(cacheKey string, data interface{}, timeExpired time.Duration) error {
+	jsonValue, err := json.Marshal(data)
 	if err != nil {
-		log.Printf("Error marshaling tasks to JSON: %v\n", err)
+		log.Printf("Error marshaling data to JSON: %v\n", err)
 		return err
 	}
 
-	err = client.Set(context.TODO(), cacheKey, jsonValue, 24*time.Hour).Err()
+	err = r.client.Set(context.TODO(), cacheKey, jsonValue, timeExpired).Err()
 	if err != nil {
 		log.Printf("Error storing data in Redis: %v\n", err)
 		return err
@@ -62,10 +41,8 @@ func SetData(cacheKey string, tasks interface{}) error {
 	return nil
 }
 
-func GetData(cacheKey string, v interface{}) error {
-	client := GetClient()
-
-	result, err := client.Get(context.TODO(), cacheKey).Result()
+func (r *RedisClient) GetData(cacheKey string, v interface{}) error {
+	result, err := r.client.Get(context.TODO(), cacheKey).Result()
 	if err != nil {
 		log.Printf("Error retrieving data from Redis: %v\n", err)
 		return err
@@ -78,4 +55,13 @@ func GetData(cacheKey string, v interface{}) error {
 	}
 
 	return nil
+}
+
+func getIntEnv(key string, defaultValue int) int {
+	value, err := strconv.Atoi(util.GetEnv(key, strconv.Itoa(defaultValue)))
+	if err != nil {
+		log.Printf("Error converting environment variable %s to integer: %v\n", key, err)
+		return defaultValue
+	}
+	return value
 }
