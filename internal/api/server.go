@@ -124,9 +124,9 @@ func convertToProtoTasks(results []interface{}) []*pb.Task {
 
 		// Convert the Task struct to the gRPC Task message
 		pbTask := &pb.Task{
-			Id:           int32(task.ID),
+			Id:           int64(task.ID),
 			Organization: task.Organization,
-			ProjectId:    int32(task.ProjectID),
+			ProjectId:    int64(task.ProjectID),
 			Type:         task.Type,
 			Name:         task.Name,
 			Interval:     task.Interval,
