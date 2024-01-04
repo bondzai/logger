@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  logger:
+    hostname: logger
+    container_name: logger-con
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:50051"
+    restart: always
+    environment:
+      - TZ=UTC
+    command: ["./logger"]
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: "4G"

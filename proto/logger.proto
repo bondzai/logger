@@ -16,7 +16,7 @@ message HealthCheckResponse {
 
 message TaskRequest {
   string organization = 1;
-  int32 project_id = 2;
+  int64 project_id = 2;
   int32 limit = 3;
 }
 
@@ -31,9 +31,9 @@ enum TaskType {
 }
 
 message Task {
-  int32 id = 1;
+  int64 id = 1;
   string organization = 2;
-  int32 project_id = 3;
+  int64 project_id = 3;
   TaskType type = 4;
   string name = 5;
   int64 interval = 6;
