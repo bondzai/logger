@@ -107,14 +107,12 @@ func convertToProtoTasks(results []interface{}) []*pb.Task {
 			continue
 		}
 
-		// Convert primitive.D to byte slice
 		data, err := bson.Marshal(document)
 		if err != nil {
 			log.Printf("Failed to marshal document: %v", err)
 			continue
 		}
 
-		// Use bson.Unmarshal to decode the byte slice into a Task struct
 		var task model.Task
 		err = bson.Unmarshal(data, &task)
 		if err != nil {
@@ -122,7 +120,6 @@ func convertToProtoTasks(results []interface{}) []*pb.Task {
 			continue
 		}
 
-		// Convert the Task struct to the gRPC Task message
 		pbTask := &pb.Task{
 			Id:           int64(task.ID),
 			Organization: task.Organization,
